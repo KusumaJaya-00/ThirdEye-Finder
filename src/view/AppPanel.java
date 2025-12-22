@@ -1,19 +1,19 @@
 package view;
 
 import dao.BarangDAO;
+import model.Barang;
+import model.User;
+import util.StyleUtil;
+import javax.swing.*;
+import javax.swing.border.EmptyBorder;
+import javax.swing.event.*;
+import javax.swing.table.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import javax.swing.*;
-import javax.swing.border.EmptyBorder;
-import javax.swing.event.*;
-import javax.swing.table.*;
-import model.Barang;
-import model.User;
-import util.StyleUtil;
 
 public class AppPanel extends JPanel {
     private MainFrame mainFrame;
@@ -39,12 +39,10 @@ public class AppPanel extends JPanel {
 
     public void initSession(User user) {
         this.currentUser = user;
-        lblRoleSubtitle.setText("Selamat Datang, " + user.getUsername() + "!");
+        lblRoleSubtitle.setText("Selamat Datang, " + user.getUsername() + " (" + user.getRole().toUpperCase() + ")");
         setupLayoutByRole();
-
-        // Reset Filter Visual saat login baru
         activeFilterCategory = "Semua";
-        resetFilterButtons(); // Helper method baru
+        resetFilterButtons();
         refreshTable();
     }
 
@@ -64,17 +62,23 @@ public class AppPanel extends JPanel {
         headText.add(lblWelcome); headText.add(lblRoleSubtitle);
 
         StyleUtil.FlatButton btnLogout = new StyleUtil.FlatButton("Keluar / Logout", StyleUtil.COL_RED);
-        btnLogout.setPreferredSize(new Dimension(150, 30)); btnLogout.setMinimumSize(new Dimension(150, 30));
+        btnLogout.setPreferredSize(new Dimension(110, 30)); btnLogout.setMinimumSize(new Dimension(110, 30));
         btnLogout.addActionListener(e -> mainFrame.showCard("LOGIN"));
         header.add(headText, BorderLayout.CENTER); header.add(btnLogout, BorderLayout.EAST);
 
-        // --- BODY ---
-        JPanel mainContent = new JPanel();
-        mainContent.setLayout(new BoxLayout(mainContent, BoxLayout.Y_AXIS));
+        // --- BODY (MAIN CONTENT) ---
+        // Menggunakan GridBagLayout untuk kontrol penuh posisi vertikal
+        JPanel mainContent = new JPanel(new GridBagLayout());
         mainContent.setBackground(StyleUtil.COL_BG_APP);
         mainContent.setBorder(new EmptyBorder(20, 20, 20, 20));
 
-        // WRAPPER FORM
+        GridBagConstraints gbcMain = new GridBagConstraints();
+        gbcMain.fill = GridBagConstraints.HORIZONTAL;
+        gbcMain.anchor = GridBagConstraints.NORTH;
+        gbcMain.weightx = 1.0;
+        gbcMain.gridx = 0;
+
+        // 1. WRAPPER FORM (Toggle + Card)
         JPanel formWrapper = new JPanel();
         formWrapper.setLayout(new BoxLayout(formWrapper, BoxLayout.Y_AXIS));
         formWrapper.setOpaque(false);
@@ -90,7 +94,7 @@ public class AppPanel extends JPanel {
                 BorderFactory.createLineBorder(new Color(220,220,220), 1),
                 new EmptyBorder(20, 20, 20, 20)));
 
-        lblFormTitleUser = new JLabel("LAPORAN KEHILANGAN BARANG");
+        lblFormTitleUser = new JLabel("MODE LAPORAN USER");
         lblFormTitleUser.setFont(new Font("Segoe UI", Font.BOLD, 12));
         lblFormTitleUser.setForeground(StyleUtil.COL_ORANGE_TEXT);
         lblFormTitleUser.setBorder(new EmptyBorder(0,0,15,0));
@@ -98,6 +102,7 @@ public class AppPanel extends JPanel {
         panelFormInput = new JPanel(new GridBagLayout());
         panelFormInput.setOpaque(false);
 
+        // Input Fields Init
         txtInputId = new JTextField();
         txtInputNama = new JTextField(); StyleUtil.styleField(txtInputNama);
         txtInputLokasi = new JTextField(); StyleUtil.styleField(txtInputLokasi);
@@ -126,23 +131,37 @@ public class AppPanel extends JPanel {
         formWrapper.add(Box.createVerticalStrut(10));
         formWrapper.add(panelFormCard);
 
-        // --- FILTER & SEARCH ---
-        JPanel toolsPanel = new JPanel(new BorderLayout(0, 10));
-        toolsPanel.setOpaque(false); toolsPanel.setBorder(new EmptyBorder(20, 0, 10, 0));
+        // Add Form Wrapper to Main
+        gbcMain.gridy = 0;
+        mainContent.add(formWrapper, gbcMain);
 
+        // 2. FILTER & SEARCH (GridBagLayout agar Presisi)
+        JPanel toolsPanel = new JPanel(new GridBagLayout());
+        toolsPanel.setOpaque(false);
+        toolsPanel.setBorder(new EmptyBorder(10, 0, 10, 0));
+
+        GridBagConstraints gbcTools = new GridBagConstraints();
+        gbcTools.gridx = 0; gbcTools.gridy = 0;
+        gbcTools.weightx = 1.0;
+        gbcTools.fill = GridBagConstraints.HORIZONTAL;
+        gbcTools.anchor = GridBagConstraints.WEST;
+
+        // Filter Bar (FlowLayout LEFT 0,0 agar rapat kiri)
         panelFilterBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         panelFilterBar.setOpaque(false);
-        String[] cats = {"Semua", "Elektronik", "Dokumen", "Pribadi", "Kendaraan", "Lain-lain"};
+        panelFilterBar.setBorder(new EmptyBorder(0,0,12,0));
+        // Hack: Bungkus di JPanel lain agar alignment GridBag sempurna
+        JPanel filterWrapper = new JPanel(new BorderLayout());
+        filterWrapper.setOpaque(false);
+        filterWrapper.add(panelFilterBar, BorderLayout.WEST);
 
+        String[] cats = {"Semua", "Elektronik", "Dokumen", "Pribadi", "Kendaraan", "Lain-lain"};
         for(String cat : cats) {
             StyleUtil.FilterButton fb = new StyleUtil.FilterButton(cat);
-            if(cat.equals("Semua")) fb.setActive(true); 
-
+            if(cat.equals("Semua")) fb.setActive(true);
             fb.addActionListener(e -> {
                 for(Component c : panelFilterBar.getComponents()) {
-                    if(c instanceof StyleUtil.FilterButton) {
-                        ((StyleUtil.FilterButton)c).setActive(false);
-                    }
+                    if(c instanceof StyleUtil.FilterButton) ((StyleUtil.FilterButton)c).setActive(false);
                 }
                 fb.setActive(true);
                 activeFilterCategory = cat;
@@ -151,15 +170,24 @@ public class AppPanel extends JPanel {
             panelFilterBar.add(fb);
         }
 
-        txtSearch = new JTextField(); StyleUtil.styleField(txtSearch);
+        toolsPanel.add(filterWrapper, gbcTools); // Add Filter Row
+
+        // Search Bar
+        txtSearch = new JTextField();
+        StyleUtil.styleField(txtSearch);
         txtSearch.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(StyleUtil.COL_BLUE_SEARCH, 1),
                 BorderFactory.createEmptyBorder(0, 10, 0, 10)));
 
-        toolsPanel.add(panelFilterBar, BorderLayout.NORTH);
-        toolsPanel.add(txtSearch, BorderLayout.CENTER);
+        gbcTools.gridy = 1;
+        gbcTools.insets = new Insets(10, 0, 0, 0); // Jarak atas 10px
+        toolsPanel.add(txtSearch, gbcTools); // Add Search Row
 
-        // --- TABLE ---
+        // Add Tools to Main
+        gbcMain.gridy = 1;
+        mainContent.add(toolsPanel, gbcMain);
+
+        // 3. TABLE
         JPanel tableCard = new JPanel(new BorderLayout());
         tableCard.setBackground(Color.WHITE);
         tableCard.setBorder(BorderFactory.createLineBorder(new Color(220,220,220)));
@@ -179,13 +207,14 @@ public class AppPanel extends JPanel {
         scroll.getViewport().setBackground(Color.WHITE); scroll.setBorder(BorderFactory.createEmptyBorder());
         tableCard.add(titleBar, BorderLayout.NORTH); tableCard.add(scroll, BorderLayout.CENTER);
 
-        // --- ADD TO MAIN ---
-        mainContent.add(formWrapper);
-        mainContent.add(toolsPanel);
-        mainContent.add(Box.createVerticalStrut(10));
-        mainContent.add(tableCard);
+        // Add Table to Main (Weighty 1.0 agar mengisi sisa ruang ke bawah)
+        gbcMain.gridy = 2;
+        gbcMain.weighty = 1.0;
+        gbcMain.fill = GridBagConstraints.BOTH;
+        mainContent.add(tableCard, gbcMain);
 
-        add(header, BorderLayout.NORTH); add(mainContent, BorderLayout.CENTER);
+        add(header, BorderLayout.NORTH);
+        add(mainContent, BorderLayout.CENTER);
 
         // --- LISTENERS ---
         btnSimpan.addActionListener(e -> simpanData());
@@ -209,7 +238,7 @@ public class AppPanel extends JPanel {
                     loadDataToForm(row);
                     if (currentUser.getRole().equals("user") && col == 5) { // WA Claim
                         Object status = table.getValueAt(row, 4);
-                        if(status != null && "Ditemukan".equals(status.toString())) {
+                        if(status != null && "Ditemukan".equalsIgnoreCase(status.toString().trim())) {
                             klaimWA(table.getValueAt(row, 1).toString());
                         }
                     }
@@ -235,7 +264,7 @@ public class AppPanel extends JPanel {
             String[] cols = {"ID", "Nama Barang", "Kategori", "Lokasi", "Status", "Aksi"};
             tableModel = new DefaultTableModel(cols, 0) { public boolean isCellEditable(int r, int c) { return false; }};
             table.setModel(tableModel);
-            table.getColumnModel().getColumn(5).setCellRenderer(new AksiButtonRenderer());
+            table.getColumnModel().getColumn(5).setCellRenderer(new StyleUtil.AksiButtonRenderer());
         } else {
             String[] cols = {"ID", "Nama Barang", "Kategori", "Lokasi", "Status"};
             tableModel = new DefaultTableModel(cols, 0) { public boolean isCellEditable(int r, int c) { return false; }};
@@ -346,7 +375,7 @@ public class AppPanel extends JPanel {
             btnToggleLapor.setText("BATALKAN LAPORAN"); btnToggleLapor.setCustomColor(StyleUtil.COL_RED);
             clearForm();
         } else {
-            btnToggleLapor.setText("LAPOR BARANG HILANG"); btnToggleLapor.setCustomColor(Color.decode("#e67e22"));
+            btnToggleLapor.setText("Lapor Barang Hilang"); btnToggleLapor.setCustomColor(Color.decode("#e67e22"));
         }
     }
 
@@ -355,23 +384,5 @@ public class AppPanel extends JPanel {
             String encoded = URLEncoder.encode(nama, StandardCharsets.UTF_8.toString());
             Desktop.getDesktop().browse(new URI("https://wa.me/62812345678?text=Halo%20Admin,%20Saya%20ingin%20klaim%20barang:%20" + encoded));
         } catch(Exception e) { e.printStackTrace(); }
-    }
-
-    class AksiButtonRenderer extends DefaultTableCellRenderer {
-        @Override
-        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int col) {
-            String status = (String) table.getValueAt(row, 4);
-            JPanel p = new JPanel(new FlowLayout(FlowLayout.CENTER));
-            p.setBackground(isSelected ? table.getSelectionBackground() : Color.WHITE);
-            if ("Ditemukan".equals(status)) {
-                JButton btn = new JButton("Klaim WA");
-                btn.setBackground(StyleUtil.COL_WA); btn.setForeground(Color.WHITE);
-                btn.setFont(new Font("Segoe UI", Font.BOLD, 11));
-                btn.setBorderPainted(false); btn.setFocusPainted(false);
-                btn.setPreferredSize(new Dimension(90, 25));
-                p.add(btn);
-            }
-            return p;
-        }
     }
 }
