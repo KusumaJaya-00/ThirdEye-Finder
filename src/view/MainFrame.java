@@ -1,6 +1,7 @@
 package view;
 
 import model.User;
+import util.Const;
 import util.StyleUtil;
 import javax.swing.*;
 import java.awt.*;
@@ -14,8 +15,9 @@ public class MainFrame extends JFrame {
     private AppPanel appPanel;
 
     public MainFrame() {
-        setTitle("Third Eye Finder");
+        setTitle(Const.APP_NAME);
         setSize(1000, 850);
+        setMinimumSize(new Dimension(850, 680));
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         StyleUtil.setGlobalFont();
